@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Random Email Generator</title>
+  <!-- Responsive trên mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Bootstrap CDN -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <style>
+    /* Background với file .webp và overlay mờ */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    body {
+      background: url('background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      position: relative;
+      min-height: 100%;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.3);
+      z-index: -1;
+    }
+    /* Bao bọc nội dung chính */
+    .container {
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    /* Tiêu đề nổi bật */
+    h1 {
+      color: #fff;
+      text-align: center;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.2);
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    /* Style cho label */
+    label, .checkbox label {
+      color: #fff;
+      font-weight: 600;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+    }
+    input.form-control {
+      color: #333;
+    }
+    /* Khu vực kết quả */
+    .result-area {
+      margin-top: 20px;
+    }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      resize: vertical;
+    }
+    #copyButton {
+      margin-top: 10px;
+    }
+    /* Responsive cho điện thoại */
+    @media (max-width: 768px) {
+      .form-horizontal .form-group {
+        margin-left: 0;
+        margin-right: 0;
+      }
+      .form-horizontal .col-sm-3, 
+      .form-horizontal .col-sm-4,
+      .form-horizontal .col-sm-9 {
+        width: 100%;
+        float: none;
+        margin-bottom: 10px;
+      }
+      .col-sm-offset-3 {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Random Email Generator</h1>
+    <!-- Form nhập thông tin -->
+    <form id="emailForm" class="form-horizontal">
+      <!-- Chọn quốc gia -->
+      <div class="form-group">
+        <label class="col-sm-3 control-label">Chọn quốc gia:</label>
+        <div class="col-sm-9" id="countrySelect">
+          <!-- Radio button được tạo động -->
+        </div>
+      </div>
+      <!-- Số lượng email -->
+      <div class="form-group">
+        <label for="num" class="col-sm-3 control-label">Số lượng email cần random:</label>
+        <div class="col-sm-9">
+          <input type="number" name="num" id="num" class="form-control" value="1000" min="1">
+        </div>
+      </div>
+      <!-- Tên miền -->
+      <div class="form-group">
+        <label for="domain" class="col-sm-3 control-label">Tên miền (Domain):</label>
+        <div class="col-sm-9">
+          <input type="text" name="domain" id="domain" class="form-control" placeholder="VD: customdomain.com (để trống để random)">
+        </div>
+      </div>
+      <!-- Checkbox thêm số ngẫu nhiên -->
+      <div class="form-group">
+        <div class="col-sm-offset-3 col-sm-9">
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" name="includeNumber" id="includeNumber"> Thêm số ngẫu nhiên vào email
+            </label>
+          </div>
+        </div>
+      </div>
+      <!-- Ô nhập khoảng số (hiển thị khi checkbox được chọn) -->
+      <div class="form-group" id="numberRangeGroup" style="display:none;">
+        <label class="col-sm-3 control-label">Khoảng số:</label>
+        <div class="col-sm-4">
+          <input type="number" name="minNumber" id="minNumber" class="form-control" placeholder="Min (mặc định 0)">
+        </div>
+        <div class="col-sm-4">
+          <input type="number" name="maxNumber" id="maxNumber" class="form-control" placeholder="Max (mặc định 99)">
+        </div>
+      </div>
+      <!-- Nút Generate -->
+      <div class="form-group">
+        <div class="col-sm-offset-3 col-sm-9">
+          <button type="submit" class="btn btn-primary">Generate</button>
+        </div>
+      </div>
+    </form>
+    <!-- Khu vực hiển thị kết quả -->
+    <div class="result-area">
+      <textarea id="emailOutput" rows="10" class="form-control" readonly placeholder="Các email được generate sẽ hiện ở đây..."></textarea>
+      <button id="copyButton" class="btn btn-success" style="display:none;">Copy to Clipboard</button>
+    </div>
+  </div>
+  
+  <!-- Load file config.js (chứa emailData và defaultDomains) -->
+  <script src="config.js"></script>
+  
+  <!-- Script xử lý logic -->
+  <script>
+    // Tạo radio button dựa trên emailData
+    function populateCountries() {
+      const countryDiv = document.getElementById('countrySelect');
+      countryDiv.innerHTML = '';
+      for (let country in emailData) {
+        const radio = document.createElement('div');
+        radio.className = 'radio';
+        radio.innerHTML = `<label><input type="radio" name="country" value="${country}"> ${country}</label>`;
+        countryDiv.appendChild(radio);
+      }
+    }
+
+    // Chọn quốc gia mặc định là "usa" nếu có, nếu không thì chọn ngẫu nhiên
+    function selectRandomCountry() {
+      const radios = document.getElementsByName('country');
+      if (radios.length === 0) return;
+      let found = false;
+      for (let i = 0; i < radios.length; i++) {
+        if (radios[i].value.toLowerCase() === 'usa' || radios[i].value.toLowerCase() === 'us') {
+          radios[i].checked = true;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        const randomIndex = Math.floor(Math.random() * radios.length);
+        radios[randomIndex].checked = true;
+      }
+    }
+
+    // Hàm generate email theo kiểu bất đồng bộ với chunk processing và auto scroll
+    function generateEmailsAsync(country, num, chosenDomain, includeNumber, min, max, chunkSize = 10000, progressCallback) {
+      return new Promise((resolve, reject) => {
+        const usernames = emailData[country];
+        const emails = [];
+        if (!usernames || usernames.length === 0) {
+          resolve(emails);
+          return;
+        }
+        let i = 0;
+        function processChunk() {
+          const end = Math.min(i + chunkSize, num);
+          for (; i < end; i++) {
+            const user1 = usernames[Math.floor(Math.random() * usernames.length)];
+            const user2 = usernames[Math.floor(Math.random() * usernames.length)];
+            let numberPart = "";
+            if (includeNumber) {
+              const randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+              numberPart = randomNum;
+            }
+            const email = `${user1.toLowerCase().replace(/\s/g, '')}.${user2.toLowerCase().replace(/\s/g, '')}${numberPart}@${chosenDomain}`;
+            emails.push(email);
+          }
+          if (progressCallback) {
+            const output = document.getElementById('emailOutput');
+            output.value = emails.join("\n");
+            output.scrollTop = output.scrollHeight;
+          }
+          if (i < num) {
+            setTimeout(processChunk, 0);
+          } else {
+            resolve(emails);
+          }
+        }
+        processChunk();
+      });
+    }
+
+    // Hàm generate và hiển thị email
+    function generateAndDisplayEmails() {
+      const formData = new FormData(document.getElementById('emailForm'));
+      const country = formData.get('country');
+      const num = parseInt(formData.get('num')) || 1000;
+      let domainInput = (formData.get('domain') || "").trim();
+      let chosenDomain = domainInput;
+      if (!chosenDomain) {
+        chosenDomain = defaultDomains[Math.floor(Math.random() * defaultDomains.length)];
+        document.getElementById('domain').value = chosenDomain;
+      }
+      const includeNumber = document.getElementById('includeNumber').checked;
+      let minNumber = 0, maxNumber = 99;
+      if (includeNumber) {
+        minNumber = parseInt(document.getElementById('minNumber').value);
+        maxNumber = parseInt(document.getElementById('maxNumber').value);
+        if (isNaN(minNumber)) minNumber = 0;
+        if (isNaN(maxNumber)) maxNumber = 99;
+      }
+      if (!country) {
+        document.getElementById('emailOutput').value = "Vui lòng chọn quốc gia.";
+        document.getElementById('copyButton').style.display = "none";
+        return;
+      }
+      const output = document.getElementById('emailOutput');
+      output.value = "Đang generate, vui lòng chờ...\n";
+      generateEmailsAsync(country, num, chosenDomain, includeNumber, minNumber, maxNumber, 10000, function(currentEmails) {
+        output.value = currentEmails.join("\n");
+        output.scrollTop = output.scrollHeight;
+      })
+      .then(emails => {
+        if (emails.length === 0) {
+          output.value = "Không có dữ liệu cho quốc gia được chọn.";
+          document.getElementById('copyButton').style.display = "none";
+        } else {
+          output.value = emails.join("\n");
+          document.getElementById('copyButton').style.display = "inline-block";
+        }
+      })
+      .catch(error => {
+        output.value = "Có lỗi xảy ra.";
+        console.error(error);
+      });
+    }
+
+    // Hiển thị/ẩn nhóm nhập khoảng số khi checkbox thay đổi
+    document.getElementById('includeNumber').addEventListener('change', function() {
+      const rangeGroup = document.getElementById('numberRangeGroup');
+      rangeGroup.style.display = this.checked ? "block" : "none";
+      generateAndDisplayEmails();
+    });
+
+    // Xử lý khi form được submit
+    document.getElementById('emailForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      generateAndDisplayEmails();
+    });
+
+    // Nút copy
+    document.getElementById('copyButton').addEventListener('click', function() {
+      const emailOutput = document.getElementById('emailOutput');
+      emailOutput.select();
+      document.execCommand("copy");
+      this.innerText = "Copied!";
+      setTimeout(() => { this.innerText = "Copy to Clipboard"; }, 2000);
+    });
+
+    // Khi trang load: tạo radio button, chọn quốc gia mặc định (usa) và generate email ngay
+    window.onload = function() {
+      populateCountries();
+      selectRandomCountry();
+      generateAndDisplayEmails();
+    };
+  </script>
+</body>
+</html>
